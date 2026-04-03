@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthetic Data Generator</title>
+    <style>
+        body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; margin:0; padding:2rem; background-color:#f4f7f9; color:#333; }
+        .main-layout { display:flex; gap:2rem; max-width:1400px; margin:0 auto; }
+        .container { flex:1; max-width:800px; background:#fff; padding:2rem; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color:#1a202c; border-bottom:2px solid #e2e8f0; padding-bottom:0.5rem; margin-bottom:1.5rem; }
+        .form-group { margin-bottom:1.5rem; }
+        label { display:block; font-weight:600; margin-bottom:0.5rem; }
+        textarea,select,button,input { width:100%; padding:0.75rem; border-radius:6px; border:1px solid #cbd5e0; font-size:1rem; box-sizing:border-box; }
+        textarea { height:120px; resize:vertical; }
+        button { background-color:#4299e1; color:#fff; border:none; cursor:pointer; font-weight:bold; transition:background-color 0.2s; margin-top:1rem; }
+        button:hover { background-color:#2b6cb0; }
+        button:disabled { background-color:#a0aec0; cursor:not-allowed; }
+        .info { background-color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.9rem; margin-top:1.5rem; text-align:center; }
+        
+        /* Schema sidebar styles */
+        .schema-sidebar { width:400px; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); padding:1.5rem; height:fit-content; position:sticky; top:2rem; transition:all 0.3s ease; }
+        .schema-sidebar.hidden { width:60px; padding:1rem; overflow:hidden; }
+        .schema-toggle { position:absolute; top:1rem; right:1rem; background:#4299e1; color:white; border:none; padding:0.5rem; border-radius:50%; cursor:pointer; width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; transition:background-color 0.2s; }
+        .schema-toggle:hover { background:#2b6cb0; }
+        .schema-content-wrapper { opacity:1; transition:opacity 0.3s ease; }
+        .schema-sidebar.hidden .schema-content-wrapper { opacity:0; pointer-events:none; }
+        .schema-header { margin-bottom:1.5rem; }
+        .schema-header h3 { margin:0 0 0.5rem 0; color:#1a202c; font-size:1.1rem; }
+        .schema-header p { margin:0; font-size:0.9rem; color:#666; }
+        
+        /* Schema upload styles */
+        .schema-tabs { display:flex; margin-bottom:1rem; }
+        .schema-tab { padding:0.5rem 1rem; background:#e2e8f0; border:none; border-radius:4px 4px 0 0; cursor:pointer; margin-right:0.25rem; font-size:0.9rem; }
+        .schema-tab.active { background:#4299e1; color:white; }
+        .schema-content { display:none; }
+        .schema-content.active { display:block; }
+        .file-input { border:2px dashed #cbd5e0; padding:1rem; text-align:center; margin-bottom:1rem; border-radius:6px; }
+        .file-input input[type="file"] { margin-bottom:0.5rem; }
+        .sql-form { display:grid; grid-template-columns:1fr; gap:0.75rem; margin-bottom:1rem; }
+        .sql-form input,select { margin-bottom:0; font-size:0.9rem; padding:0.6rem; }
+        .sql-row { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; }
+        .btn-small { padding:0.4rem 0.8rem; font-size:0.85rem; margin:0.2rem; }
+        .btn-secondary { background:#718096; }
+        .btn-secondary:hover { background:#4a5568; }
+        .tables-list { max-height:120px; overflow-y:auto; border:1px solid #cbd5e0; border-radius:4px; padding:0.5rem; margin-bottom:1rem; font-size:0.85rem; }
+        .table-item { padding:0.25rem; cursor:pointer; border-radius:3px; }
+        .table-item:hover { background:#f7fafc; }
+        .table-item.selected { background:#bee3f8; }
+        .schema-preview { background:#f7fafc; border:1px solid #cbd5e0; border-radius:4px; padding:0.75rem; max-height:150px; overflow-y:auto; font-family:monospace; font-size:0.75rem; margin-bottom:1rem; transition:opacity 0.3s, border-color 0.3s; }
+        .schema-preview.enabled { border-color:#4299e1; opacity:1; }
+        .schema-preview.disabled { border-color:#cbd5e0; opacity:0.6; }
+        
+        /* Status messages */
+        .status { 
+            padding: 0.75rem 1rem; 
+            border-radius: 6px; 
+            margin-bottom: 1rem; 
+            font-weight: 500;
+            border: 1px solid transparent;
+            display: block;
+        }
+        .status.success { 
+            background: #c6f6d5; 
+            color: #22543d; 
+            border-color: #68d391;
+        }
+        .status.error { 
+            background: #fed7d7; 
+            color: #c53030; 
+            border-color: #fc8181;
+        }
+        .status.info { 
+            background: #bee3f8; 
+            color: #2a69ac; 
+            border-color: #63b3ed;
+        }
+        
+        /* Schema status indicator */
+        .schema-status { display:inline-block; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.8rem; margin-bottom:1rem; }
+        .schema-status.active { background:#c6f6d5; color:#22543d; }
+        .schema-status.inactive { background:#e2e8f0; color:#666; }
+        
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .main-layout { flex-direction:column; }
+            .schema-sidebar { width:100%; position:relative; top:0; }
+            .schema-sidebar.hidden { display:none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <!-- Main Content -->
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h1 style="margin: 0;">Synthetic Data Generator</h1>
+                <a href="/analytics-dashboard" class="btn-small btn-secondary" style="text-decoration: none; color: white; padding: 0.5rem 1rem; border-radius: 4px; background: #667eea;">
+                    <i class="fas fa-chart-line" style="margin-right: 0.5rem;"></i>Analytics Dashboard
+                </a>
+            </div>
+            <p>Enter a prompt, choose your mode and desired format, and get your synthetic data.</p>
+
+            <form id="data-form" method="POST" autocomplete="off" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="prompt">Your Prompt:</label>
+                    <textarea id="prompt" name="prompt"
+                              placeholder="e.g., Generate 20 restaurants with name, cuisine, rating and location&#10;&#10;Generate 100 hotels with name, location, rating and price per night&#10;&#10;Generate 50 insurance agencies with agency name, location, services offered"
+                              required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="mode">Generation Mode:</label>
+                    <select id="mode" name="mode">
+                        <option value="online">Online (OpenRouter API)</option>
+                        <option value="gemini">Gemini (Google AI Studio)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="template-group" style="display:none;">
+                    <label for="template">Template Data (Optional):</label>
+                    <textarea id="template" name="template"
+                              placeholder="Provide 2-3 example rows to help the model understand your data structure:&#10;&#10;For Hotels (CSV):&#10;name,location,rating,price_per_night&#10;The Grand Palace Hotel,New York,4.5,250&#10;Ocean View Resort,Miami,4.2,180&#10;&#10;For Restaurants (JSON):&#10;{&quot;name&quot;: &quot;Crab Foods Restaurant&quot;, &quot;cuisine&quot;: &quot;Seafood&quot;, &quot;rating&quot;: 4.3, &quot;location&quot;: &quot;Boston&quot;}&#10;{&quot;name&quot;: &quot;Indian Spice Palace&quot;, &quot;cuisine&quot;: &quot;Indian&quot;, &quot;rating&quot;: 4.6, &quot;location&quot;: &quot;Chicago&quot;}"
+                              style="height:120px;"></textarea>
+                    <small style="color:#666; font-size:0.85rem;">
+                        💡 Tip: Use specific business names like "Crab Foods", "Sea Breeze Cafe", "Golden Dragon Restaurant" to help the AI understand the domain better
+                    </small>
+                </div>
+
+                <div class="form-group" id="format-group">
+                    <label for="format">Output Format:</label>
+                    <select id="format" name="format">
+                        <option value="csv">CSV</option>
+                        <option value="json">JSON</option>
+                    </select>
+                </div>
+
+                <!-- Advanced Options for Online Mode -->
+                <div class="form-group" id="advanced-options" style="display:none;">
+                    <h3 style="margin-bottom:1rem; color:#1a202c;">Advanced Generation Options</h3>
+                    
+                    <!-- Data Quality & Outliers -->
+                    <div style="background:#f7fafc; padding:1rem; border-radius:6px; margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Data Quality</h4>
+                        <label style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                            <input type="checkbox" id="include-outliers" name="include-outliers" style="width:auto; margin-right:0.5rem;">
+                            Include Outliers (5-10% of data will have unusual values)
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                            <input type="checkbox" id="email-validation" name="email-validation" style="width:auto; margin-right:0.5rem;" checked>
+                            Email format validation (@gmail.com, @outlook.com, @hotmail.com preference)
+                        </label>
+                        <label style="display:flex; align-items:center;">
+                            <input type="checkbox" id="data-validation" name="data-validation" style="width:auto; margin-right:0.5rem;" checked>
+                            Field validation (phone numbers, dates, postal codes)
+                        </label>
+                    </div>
+
+                    <!-- Demographics & Analytics -->
+                    <div style="background:#f7fafc; padding:1rem; border-radius:6px; margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Demographics & Analytics</h4>
+                        <label style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                            <input type="checkbox" id="enable-analytics" name="enable-analytics" style="width:auto; margin-right:0.5rem;">
+                            Enable AI Analytics (age groups, demographics, trends)
+                        </label>
+                        
+                        <div id="analytics-options" style="display:none; margin-top:0.5rem; padding-left:1rem;">
+                            <label for="age-distribution">Age Distribution:</label>
+                            <select id="age-distribution" name="age-distribution" style="margin-bottom:0.5rem;">
+                                <option value="balanced">Balanced (all age groups)</option>
+                                <option value="gen-z">Gen-Z focused (18-26: 45%)</option>
+                                <option value="millennials">Millennial focused (27-42: 40%)</option>
+                                <option value="gen-x">Gen-X focused (43-58: 35%)</option>
+                                <option value="boomers">Boomer focused (59+: 30%)</option>
+                            </select>
+                            
+                            <label for="demographics-region">Regional Demographics:</label>
+                            <select id="demographics-region" name="demographics-region" style="margin-bottom:0.5rem;">
+                                <option value="global">Global mix</option>
+                                <option value="north-america">North America focused</option>
+                                <option value="europe">Europe focused</option>
+                                <option value="asia-pacific">Asia-Pacific focused</option>
+                                <option value="india">India focused</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Conditional Logic -->
+                    <div style="background:#f7fafc; padding:1rem; border-radius:6px; margin-bottom:1rem;">
+                        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Conditional Logic</h4>
+                        <label for="age-conditions">Age Conditions:</label>
+                        <select id="age-conditions" name="age-conditions" style="margin-bottom:0.5rem;">
+                            <option value="none">No age restrictions</option>
+                            <option value="adults">Adults only (age > 18)</option>
+                            <option value="young-adults">Young adults (18 < age < 30)</option>
+                            <option value="working-age">Working age (25 < age < 65)</option>
+                            <option value="seniors">Seniors (age > 60)</option>
+                            <option value="custom">Custom range</option>
+                        </select>
+                        
+                        <div id="custom-age-range" style="display:none; margin-top:0.5rem;">
+                            <div style="display:flex; gap:0.5rem;">
+                                <input type="number" id="min-age" name="min-age" placeholder="Min age" style="width:50%;">
+                                <input type="number" id="max-age" name="max-age" placeholder="Max age" style="width:50%;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Domain-Specific Options -->
+                    <div style="background:#f7fafc; padding:1rem; border-radius:6px;">
+                        <h4 style="margin:0 0 0.5rem 0; font-size:1rem;">Domain-Specific Data</h4>
+                        <label style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                            <input type="checkbox" id="common-emails" name="common-emails" style="width:auto; margin-right:0.5rem;" checked>
+                            Use common email providers (Gmail 60%, Outlook 25%, Hotmail 10%, others 5%)
+                        </label>
+                        <label style="display:flex; align-items:center; margin-bottom:0.5rem;">
+                            <input type="checkbox" id="realistic-names" name="realistic-names" style="width:auto; margin-right:0.5rem;" checked>
+                            Generate realistic names based on regional demographics
+                        </label>
+                        <label style="display:flex; align-items:center;">
+                            <input type="checkbox" id="business-context" name="business-context" style="width:auto; margin-right:0.5rem;">
+                            Business context aware (industry-specific data patterns)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Hidden input for schema context -->
+                <input type="hidden" id="schema-context" name="schema-context" value="">
+
+                <button id="submit-btn" type="submit">
+                    Generate and Download CSV
+                </button>
+            </form>
+
+            <div id="status" class="info" style="display:none;"></div>
+        </div>
+
+        <!-- Schema Upload Sidebar -->
+        <div class="schema-sidebar" id="schema-sidebar">
+            <button class="schema-toggle" onclick="toggleSchemaSidebar()">📁</button>
+            
+            <div class="schema-content-wrapper">
+                <div class="schema-header">
+                    <h3>Schema Upload</h3>
+                    <p>Enhance data generation with your schema structure (Online mode only)</p>
+                    <div id="schema-status" class="schema-status inactive">Inactive</div>
+                </div>
+                
+                <div class="schema-tabs">
+                    <button class="schema-tab active" onclick="switchSchemaTab('file')">📄 File</button>
+                    <button class="schema-tab" onclick="switchSchemaTab('sql')">🗄️ SQL</button>
+                </div>
+                
+                <!-- File Upload Tab -->
+                <div class="schema-content active" id="schema-file">
+                    <div class="file-input">
+                        <input type="file" id="schema-file-input" accept=".csv,.json,.sql,.txt">
+                        <p style="margin:0; font-size:0.8rem; color:#666;">
+                            CSV, JSON, SQL, or TXT files (max 2MB)
+                        </p>
+                    </div>
+                    <button type="button" class="btn-small btn-secondary" onclick="clearFileSchema()">Clear File</button>
+                </div>
+                
+                <!-- SQL Server Tab -->
+                <div class="schema-content" id="schema-sql">
+                    <div class="sql-form">
+                        <div class="sql-row">
+                            <input type="text" id="sql-server" placeholder="Server" />
+                            <input type="text" id="sql-database" placeholder="Database" />
+                        </div>
+                        <input type="text" id="sql-schema" placeholder="Schema (default: dbo)" value="dbo" />
+                        <select id="sql-auth-type">
+                            <option value="windows">Windows Auth</option>
+                            <option value="sql">SQL Auth</option>
+                        </select>
+                        <input type="text" id="sql-username" placeholder="Username" style="display:none;" />
+                        <input type="password" id="sql-password" placeholder="Password" style="display:none;" />
+                    </div>
+                    
+                    <div style="margin-bottom:1rem;">
+                        <button type="button" class="btn-small btn-secondary" onclick="testSqlConnection()">🔌 Test</button>
+                        <button type="button" class="btn-small btn-secondary" onclick="loadSqlTables()">📋 Tables</button>
+                        <button type="button" class="btn-small btn-secondary" onclick="generateSqlSchema()">✨ Schema</button>
+                        <button type="button" class="btn-small btn-secondary" onclick="clearSqlSchema()">🗑️ Clear</button>
+                    </div>
+                    
+                    <div class="tables-list" id="sql-tables-list" style="display:none;">
+                        <p style="margin:0 0 0.5rem 0; font-weight:600; font-size:0.85rem;">Select tables:</p>
+                    </div>
+                    
+                    <label style="font-size:0.8rem;">
+                        <input type="checkbox" id="include-sample-data" style="width:auto; margin-right:0.5rem;">
+                        Include sample data
+                    </label>
+                </div>
+                
+                <!-- Schema Preview -->
+                <div id="schema-preview" class="schema-preview" style="display:none;">
+                    <strong style="font-size:0.85rem;">Schema Preview:</strong><br>
+                    <div id="schema-preview-content"></div>
+                </div>
+                
+                <!-- Include Schema Checkbox -->
+                <div style="margin-top:1rem;">
+                    <label>
+                        <input type="checkbox" id="include-schema" style="width:auto; margin-right:0.5rem;" checked>
+                        <strong>Include schema in data generation</strong>
+                    </label>
+                    <p style="margin:0.5rem 0 0 1.5rem; font-size:0.85rem; color:#666;">
+                        When checked, the uploaded schema will be used to guide data generation. 
+                        Uncheck to generate data without schema constraints.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modeSelect = document.getElementById('mode');
+        const formatSelect = document.getElementById('format');
+        const formatGroup = document.getElementById('format-group');
+        const templateGroup = document.getElementById('template-group');
+        const advancedOptions = document.getElementById('advanced-options');
+        const submitBtn = document.getElementById('submit-btn');
+        const form = document.getElementById('data-form');
+        const statusDiv = document.getElementById('status');
+        const schemaSidebar = document.getElementById('schema-sidebar');
+        const schemaStatus = document.getElementById('schema-status');
+        const sqlAuthType = document.getElementById('sql-auth-type');
+        const sqlUsername = document.getElementById('sql-username');
+        const sqlPassword = document.getElementById('sql-password');
+        const includeSchemaCheckbox = document.getElementById('include-schema');
+        const enableAnalytics = document.getElementById('enable-analytics');
+        const analyticsOptions = document.getElementById('analytics-options');
+        const ageConditions = document.getElementById('age-conditions');
+        const customAgeRange = document.getElementById('custom-age-range');
+
+        let downloadTimeout = null;
+        let unlockTimeout = null;
+        let currentSchemaContext = "";
+        let selectedTables = [];
+        let sidebarCollapsed = false;
+
+        function updateFormState() {
+            const format = formatSelect.value;
+
+            // Always show schema sidebar and advanced options (online mode only)
+            schemaSidebar.style.display = 'block';
+            templateGroup.style.display = 'none';
+            advancedOptions.style.display = 'block';
+            updateSchemaStatus();
+
+            formatSelect.disabled = false;
+            formatGroup.style.opacity = '1';
+            submitBtn.textContent = `Generate and Download ${format.toUpperCase()}`;
+        }
+
+        function toggleSchemaSidebar() {
+            sidebarCollapsed = !sidebarCollapsed;
+            schemaSidebar.classList.toggle('hidden', sidebarCollapsed);
+            
+            const toggleBtn = document.querySelector('.schema-toggle');
+            toggleBtn.textContent = sidebarCollapsed ? '📁' : '✖';
+            toggleBtn.title = sidebarCollapsed ? 'Expand Schema Panel' : 'Collapse Schema Panel';
+        }
+
+        function updateSchemaStatus() {
+            const schemaPreview = document.getElementById('schema-preview');
+            
+            if (currentSchemaContext) {
+                schemaStatus.textContent = 'Active';
+                schemaStatus.className = 'schema-status active';
+                
+                // Update schema preview styling based on checkbox state
+                if (schemaPreview.style.display !== 'none') {
+                    if (includeSchemaCheckbox.checked) {
+                        schemaPreview.className = 'schema-preview enabled';
+                    } else {
+                        schemaPreview.className = 'schema-preview disabled';
+                    }
+                }
+            } else {
+                schemaStatus.textContent = 'Inactive';
+                schemaStatus.className = 'schema-status inactive';
+                schemaPreview.className = 'schema-preview';
+            }
+        }
+
+        function switchSchemaTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.schema-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`button[onclick="switchSchemaTab('${tab}')"]`).classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.schema-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`schema-${tab}`).classList.add('active');
+            
+            // Clear schema context when switching tabs
+            clearSchemaPreview();
+        }
+
+        function clearSchemaPreview() {
+            currentSchemaContext = "";
+            document.getElementById('schema-context').value = "";
+            document.getElementById('schema-preview').style.display = 'none';
+            updateSchemaStatus();
+        }
+
+        function showSchemaPreview(context) {
+            currentSchemaContext = context;
+            document.getElementById('schema-context').value = context;
+            document.getElementById('schema-preview-content').textContent = context.substring(0, 400) + (context.length > 400 ? '...' : '');
+            document.getElementById('schema-preview').style.display = 'block';
+            updateSchemaStatus();
+        }
+
+        // File upload handling
+        document.getElementById('schema-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Validate file
+            const allowedTypes = ['text/csv', 'application/json', 'text/plain', 'application/sql'];
+            const allowedExts = ['.csv', '.json', '.sql', '.txt'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!allowedExts.includes(fileExt)) {
+                alert('Please upload CSV, JSON, SQL, or TXT files only.');
+                e.target.value = '';
+                return;
+            }
+            
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB.');
+                e.target.value = '';
+                return;
+            }
+            
+            // Read and preview file
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                let context = `File: ${file.name}\n\n${content}`;
+                showSchemaPreview(context);
+            };
+            reader.readAsText(file);
+        });
+
+        function clearFileSchema() {
+            document.getElementById('schema-file-input').value = '';
+            clearSchemaPreview();
+        }
+
+        // SQL Server handling
+        sqlAuthType.addEventListener('change', function() {
+            const isSQL = this.value === 'sql';
+            sqlUsername.style.display = isSQL ? 'block' : 'none';
+            sqlPassword.style.display = isSQL ? 'block' : 'none';
+        });
+
+        async function testSqlConnection() {
+            const server = document.getElementById('sql-server').value || '';
+            const database = document.getElementById('sql-database').value || '';
+            const useWindowsAuth = sqlAuthType.value === 'windows';
+            const username = sqlUsername.value || '';
+            const password = sqlPassword.value || '';
+            
+            // Validate inputs
+            if (!server.trim() || !database.trim()) {
+                alert('Please enter server and database name.');
+                return;
+            }
+            
+            // Prepare data
+            const requestData = {
+                server: server.trim(),
+                database: database.trim(),
+                use_windows_auth: useWindowsAuth
+            };
+            
+            // Only add username/password if using SQL Server auth
+            if (!useWindowsAuth) {
+                if (!username.trim() || !password.trim()) {
+                    alert('Please enter username and password for SQL Server authentication.');
+                    return;
+                }
+                requestData.username = username.trim();
+                requestData.password = password.trim();
+            }
+            
+            try {
+                statusDiv.textContent = 'Testing SQL Server connection...';
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#e2e8f0';
+                statusDiv.style.color = '#333';
+                
+                console.log('Testing SQL connection with:', requestData);
+                
+                const response = await fetch('/api/sql-server/test-connection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                console.log('SQL connection test response:', data);
+                
+                if (data.success) {
+                    statusDiv.textContent = '✅ Connection successful! ' + data.message;
+                    statusDiv.style.backgroundColor = '#c6f6d5';
+                    statusDiv.style.color = '#22543d';
+                } else {
+                    statusDiv.textContent = '❌ Connection failed: ' + data.error;
+                    statusDiv.style.backgroundColor = '#fed7d7';
+                    statusDiv.style.color = '#c53030';
+                }
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                    statusDiv.style.backgroundColor = '#e2e8f0';
+                    statusDiv.style.color = '#333';
+                }, 5000);
+                
+            } catch (error) {
+                console.error('SQL connection test error:', error);
+                statusDiv.textContent = '❌ Error: ' + error.message;
+                statusDiv.style.backgroundColor = '#fed7d7';
+                statusDiv.style.color = '#c53030';
+                statusDiv.style.display = 'block';
+            }
+        }
+
+        async function loadSqlTables() {
+            const server = document.getElementById('sql-server').value || '';
+            const database = document.getElementById('sql-database').value || '';
+            const schemaName = document.getElementById('sql-schema').value || 'dbo';
+            const useWindowsAuth = sqlAuthType.value === 'windows';
+            const username = sqlUsername.value || '';
+            const password = sqlPassword.value || '';
+            
+            if (!server.trim() || !database.trim()) {
+                alert('Please enter server and database name.');
+                return;
+            }
+            
+            // Prepare data
+            const requestData = {
+                server: server.trim(),
+                database: database.trim(),
+                schema_name: schemaName.trim(),
+                use_windows_auth: useWindowsAuth
+            };
+            
+            // Only add username/password if using SQL Server auth
+            if (!useWindowsAuth) {
+                if (!username.trim() || !password.trim()) {
+                    alert('Please enter username and password for SQL Server authentication.');
+                    return;
+                }
+                requestData.username = username.trim();
+                requestData.password = password.trim();
+            }
+            
+            try {
+                statusDiv.textContent = 'Loading tables...';
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#e2e8f0';
+                statusDiv.style.color = '#333';
+                
+                console.log('Loading SQL tables with:', requestData);
+                
+                const response = await fetch('/api/sql-server/tables', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                console.log('SQL tables response:', data);
+                
+                if (data.success) {
+                    displayTables(data.tables);
+                    statusDiv.textContent = `✅ Loaded ${data.tables.length} tables`;
+                    statusDiv.style.backgroundColor = '#c6f6d5';
+                    statusDiv.style.color = '#22543d';
+                } else {
+                    statusDiv.textContent = '❌ Failed to load tables: ' + data.error;
+                    statusDiv.style.backgroundColor = '#fed7d7';
+                    statusDiv.style.color = '#c53030';
+                }
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                    statusDiv.style.backgroundColor = '#e2e8f0';
+                    statusDiv.style.color = '#333';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('SQL tables loading error:', error);
+                statusDiv.textContent = '❌ Error loading tables: ' + error.message;
+                statusDiv.style.backgroundColor = '#fed7d7';
+                statusDiv.style.color = '#c53030';
+                statusDiv.style.display = 'block';
+            }
+        }
+
+        function displayTables(tables) {
+            const tablesList = document.getElementById('sql-tables-list');
+            tablesList.innerHTML = '<p style="margin:0 0 0.5rem 0; font-weight:600;">Select tables:</p>';
+            
+            tables.forEach(table => {
+                const div = document.createElement('div');
+                div.className = 'table-item';
+                div.textContent = table;
+                div.onclick = () => toggleTableSelection(div, table);
+                tablesList.appendChild(div);
+            });
+            
+            tablesList.style.display = 'block';
+            selectedTables = [];
+        }
+
+        function toggleTableSelection(element, tableName) {
+            element.classList.toggle('selected');
+            
+            if (selectedTables.includes(tableName)) {
+                selectedTables = selectedTables.filter(t => t !== tableName);
+            } else {
+                selectedTables.push(tableName);
+            }
+        }
+
+        async function generateSqlSchema() {
+            if (selectedTables.length === 0) {
+                alert('Please select at least one table.');
+                return;
+            }
+            
+            const server = document.getElementById('sql-server').value || '';
+            const database = document.getElementById('sql-database').value || '';
+            const schemaName = document.getElementById('sql-schema').value || 'dbo';
+            const useWindowsAuth = sqlAuthType.value === 'windows';
+            const username = sqlUsername.value || '';
+            const password = sqlPassword.value || '';
+            const includeSampleData = document.getElementById('include-sample-data').checked;
+            
+            if (!server.trim() || !database.trim()) {
+                alert('Please enter server and database name.');
+                return;
+            }
+            
+            // Prepare data
+            const requestData = {
+                server: server.trim(),
+                database: database.trim(),
+                schema_name: schemaName.trim(),
+                tables: selectedTables,
+                include_sample_data: includeSampleData,
+                use_windows_auth: useWindowsAuth
+            };
+            
+            // Only add username/password if using SQL Server auth
+            if (!useWindowsAuth) {
+                if (!username.trim() || !password.trim()) {
+                    alert('Please enter username and password for SQL Server authentication.');
+                    return;
+                }
+                requestData.username = username.trim();
+                requestData.password = password.trim();
+            }
+            
+            try {
+                statusDiv.textContent = 'Generating schema context...';
+                statusDiv.style.display = 'block';
+                statusDiv.style.backgroundColor = '#e2e8f0';
+                statusDiv.style.color = '#333';
+                
+                console.log('Generating SQL schema with:', requestData);
+                
+                const response = await fetch('/api/sql-server/schema', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                console.log('SQL schema generation response:', data);
+                
+                if (data.success) {
+                    showSchemaPreview(data.schema_context);
+                    statusDiv.textContent = '✅ Schema context generated successfully!';
+                    statusDiv.style.backgroundColor = '#c6f6d5';
+                    statusDiv.style.color = '#22543d';
+                } else {
+                    statusDiv.textContent = '❌ Schema generation failed: ' + data.error;
+                    statusDiv.style.backgroundColor = '#fed7d7';
+                    statusDiv.style.color = '#c53030';
+                }
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                    statusDiv.style.backgroundColor = '#e2e8f0';
+                    statusDiv.style.color = '#333';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('SQL schema generation error:', error);
+                statusDiv.textContent = '❌ Error: ' + error.message;
+                statusDiv.style.backgroundColor = '#fed7d7';
+                statusDiv.style.color = '#c53030';
+                statusDiv.style.display = 'block';
+            }
+        }
+
+        function clearSqlSchema() {
+            document.getElementById('sql-tables-list').style.display = 'none';
+            selectedTables = [];
+            clearSchemaPreview();
+        }
+
+        function displayAnalytics(analytics) {
+            // Create or update analytics display section
+            let analyticsDiv = document.getElementById('analytics-display');
+            if (!analyticsDiv) {
+                analyticsDiv = document.createElement('div');
+                analyticsDiv.id = 'analytics-display';
+                analyticsDiv.style.cssText = `
+                    background: #f0f9ff;
+                    border: 2px solid #0ea5e9;
+                    border-radius: 8px;
+                    padding: 1.5rem;
+                    margin-top: 1.5rem;
+                    font-family: monospace;
+                `;
+                document.querySelector('.container').appendChild(analyticsDiv);
+            }
+            
+            let content = '<h3 style="margin:0 0 1rem 0; color:#0369a1;">📊 Julius AI Analytics Report</h3>';
+            
+            // Total records
+            content += `<p><strong>Total Records:</strong> ${analytics.total_records}</p>`;
+            
+            // Demographics analysis
+            if (analytics.demographic_analysis && analytics.demographic_analysis.age_distribution) {
+                content += '<h4 style="margin:1rem 0 0.5rem 0; color:#0369a1;">Age Distribution:</h4>';
+                for (const [group, percentage] of Object.entries(analytics.demographic_analysis.age_distribution)) {
+                    content += `<div style="margin:0.25rem 0;">• ${group}: ${percentage}%</div>`;
+                }
+            }
+            
+            // Email providers
+            if (analytics.data_quality_metrics && analytics.data_quality_metrics.email_providers) {
+                content += '<h4 style="margin:1rem 0 0.5rem 0; color:#0369a1;">Email Providers:</h4>';
+                for (const [provider, percentage] of Object.entries(analytics.data_quality_metrics.email_providers)) {
+                    content += `<div style="margin:0.25rem 0;">• ${provider}: ${percentage}%</div>`;
+                }
+            }
+            
+            // Field completeness
+            if (analytics.field_analysis && analytics.field_analysis.completeness) {
+                content += '<h4 style="margin:1rem 0 0.5rem 0; color:#0369a1;">Field Completeness:</h4>';
+                for (const [field, percentage] of Object.entries(analytics.field_analysis.completeness)) {
+                    const color = percentage >= 90 ? 'green' : percentage >= 70 ? 'orange' : 'red';
+                    content += `<div style="margin:0.25rem 0;">• ${field}: <span style="color:${color};">${percentage}%</span></div>`;
+                }
+            }
+            
+            // Outliers
+            if (analytics.data_quality_metrics && analytics.data_quality_metrics.outliers && analytics.data_quality_metrics.outliers.length > 0) {
+                content += '<h4 style="margin:1rem 0 0.5rem 0; color:#0369a1;">Outliers Detected:</h4>';
+                for (const outlier of analytics.data_quality_metrics.outliers) {
+                    content += `<div style="margin:0.25rem 0;">• ${outlier.field}: ${outlier.outlier_count} outliers (${outlier.outlier_percentage}%)</div>`;
+                }
+            }
+            
+            // Generation timestamp
+            const timestamp = new Date(analytics.generation_timestamp).toLocaleString();
+            content += `<p style="margin-top:1rem; font-size:0.9rem; color:#666;">Generated: ${timestamp}</p>`;
+            
+            analyticsDiv.innerHTML = content;
+            
+            // Auto-hide after 15 seconds
+            setTimeout(() => {
+                if (analyticsDiv && analyticsDiv.parentNode) {
+                    analyticsDiv.style.opacity = '0.7';
+                }
+            }, 15000);
+        }
+
+        function unlockButton() {
+            const format = formatSelect.value;
+            submitBtn.disabled = false;
+            submitBtn.textContent = `Generate and Download ${format.toUpperCase()}`;
+            statusDiv.style.display = 'none';
+            
+            console.log('DEBUG: unlockButton() - Button unlocked, format:', format);
+            
+            // Clear any existing timeouts
+            if (downloadTimeout) {
+                clearTimeout(downloadTimeout);
+                downloadTimeout = null;
+            }
+            if (unlockTimeout) {
+                clearTimeout(unlockTimeout);
+                unlockTimeout = null;
+            }
+        }
+
+        function triggerDownload(url) {
+            console.log('DEBUG: triggerDownload() - Starting download from:', url);
+            
+            // Create hidden iframe for download detection
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            
+            // Set a timer to unlock after download should have started
+            setTimeout(() => {
+                console.log('DEBUG: triggerDownload() - Download should have started, unlocking button');
+                unlockButton();
+                statusDiv.textContent = 'Download completed. You can generate more data.';
+                statusDiv.style.display = 'block';
+                setTimeout(() => statusDiv.style.display = 'none', 3000);
+                
+                // Clean up iframe
+                document.body.removeChild(iframe);
+            }, 2000);
+        }
+
+        // Event listeners
+        modeSelect.addEventListener('change', updateFormState);
+        formatSelect.addEventListener('change', updateFormState);
+        
+        // Add event listener for schema checkbox
+        includeSchemaCheckbox.addEventListener('change', updateSchemaStatus);
+
+        // Add event listeners for new advanced options
+        enableAnalytics.addEventListener('change', function() {
+            analyticsOptions.style.display = this.checked ? 'block' : 'none';
+        });
+
+        ageConditions.addEventListener('change', function() {
+            customAgeRange.style.display = this.value === 'custom' ? 'block' : 'none';
+        });
+
+        form.addEventListener('submit', function(e) {
+            const mode = modeSelect.value;
+            const format = formatSelect.value;
+            
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Generating... Please wait';
+            statusDiv.textContent = 'Generating your data. Download will start automatically.';
+            statusDiv.style.display = 'block';
+
+            console.log(`DEBUG: ${mode} mode - Starting API call`);
+            const prompt = document.getElementById('prompt').value;
+            const template = document.getElementById('template').value;
+            const includeSchema = document.getElementById('include-schema').checked;
+            
+            // Clean prompt for filename (keep original for generation)
+            const cleanPrompt = prompt.length > 50 ? prompt.substring(0, 50) : prompt;
+            
+            // Prepare request data
+            let requestData = {
+                prompt: prompt,
+                template: template,
+                mode: mode,
+                format: format,
+                clean_prompt: cleanPrompt
+            };
+            
+            // Add advanced options for online and gemini modes
+            if (mode === 'online' || mode === 'gemini') {
+                requestData.advanced_options = {
+                    include_outliers: document.getElementById('include-outliers').checked,
+                    email_validation: document.getElementById('email-validation').checked,
+                    data_validation: document.getElementById('data-validation').checked,
+                    enable_analytics: document.getElementById('enable-analytics').checked,
+                    age_distribution: document.getElementById('age-distribution').value,
+                    demographics_region: document.getElementById('demographics-region').value,
+                    age_conditions: document.getElementById('age-conditions').value,
+                    min_age: document.getElementById('min-age').value || null,
+                    max_age: document.getElementById('max-age').value || null,
+                    common_emails: document.getElementById('common-emails').checked,
+                    realistic_names: document.getElementById('realistic-names').checked,
+                    business_context: document.getElementById('business-context').checked
+                };
+                
+                console.log('DEBUG: Advanced options for', mode, ':', requestData.advanced_options);
+            }
+            
+            // Add schema context if available AND checkbox is checked
+            if (currentSchemaContext && includeSchema) {
+                requestData.sql_schema_context = currentSchemaContext;
+                console.log('DEBUG: Including schema context in request, length:', currentSchemaContext.length);
+            } else if (currentSchemaContext && !includeSchema) {
+                console.log('DEBUG: Schema available but not included (checkbox unchecked)');
+            } else {
+                console.log('DEBUG: No schema context available');
+            }
+            
+            fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                console.log(`DEBUG: ${mode} mode - API response received, status:`, response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(`DEBUG: ${mode} mode - API response data:`, data);
+                if (data.success && data.filename) {
+                    statusDiv.textContent = 'Download starting...';
+                    
+                    // Show analytics if available
+                    if (data.analytics && (mode === 'online' || mode === 'gemini')) {
+                        displayAnalytics(data.analytics);
+                    }
+                    
+                    // Handle main data file download
+                    const downloadUrl = '/download/' + encodeURIComponent(data.filename);
+                    console.log(`DEBUG: ${mode} mode - Triggering data download:`, downloadUrl);
+                    triggerDownload(downloadUrl);
+                    
+                    // Handle analytics file download if available
+                    if (data.analytics_file) {
+                        console.log(`DEBUG: ${mode} mode - Analytics file available:`, data.analytics_file);
+                        setTimeout(() => {
+                            const analyticsDownloadUrl = '/download/' + encodeURIComponent(data.analytics_file);
+                            console.log(`DEBUG: ${mode} mode - Triggering analytics download:`, analyticsDownloadUrl);
+                            triggerDownload(analyticsDownloadUrl);
+                            
+                            // Update status to show both files downloaded
+                            statusDiv.textContent = 'Data and Analytics files downloaded!';
+                            statusDiv.style.backgroundColor = '#c6f6d5';
+                            statusDiv.style.color = '#22543d';
+                        }, 1000); // Small delay to prevent browser blocking multiple downloads
+                    }
+                } else {
+                    throw new Error(data.error || 'Unknown server error');
+                }
+            })
+            .catch(err => {
+                console.error(`DEBUG: ${mode} mode - Generation failed:`, err);
+                statusDiv.textContent = 'Error: ' + err.message;
+                statusDiv.style.backgroundColor = '#fed7d7';
+                statusDiv.style.color = '#c53030';
+                unlockButton();
+                
+                // Reset error styling after delay
+                setTimeout(() => {
+                    statusDiv.style.backgroundColor = '#e2e8f0';
+                    statusDiv.style.color = '#333';
+                }, 5000);
+            });
+        });
+
+        // Handle beforeunload (user navigating away) - clean up any timeouts
+        window.addEventListener('beforeunload', function() {
+            if (downloadTimeout) clearTimeout(downloadTimeout);
+            if (unlockTimeout) clearTimeout(unlockTimeout);
+        });
+
+        // Initialize form on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFormState();
+            unlockButton();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+/* Main CSS for Synthetic Data Generator */
+
+/* Base Styles */
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    margin: 0; 
+    padding: 0; 
+    background-color: #f4f7f9; 
+    color: #333; 
+}
+
+/* Main Layout */
+.main-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-wrapper {
+    display: flex;
+    flex: 1;
+    position: relative;
+    padding: 2rem;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.form-container {
+    max-width: 700px;
+    width: 100%;
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    height: fit-content;
+}
+
+/* Schema Sidebar */
+.schema-sidebar {
+    width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    height: fit-content;
+    position: relative;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.schema-sidebar.hidden {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Schema Toggle Button */
+.schema-toggle-btn {
+    position: fixed;
+    top: 50%;
+    right: 2rem;
+    transform: translateY(-50%);
+    background: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.schema-toggle-btn:hover {
+    background: #2b6cb0;
+    transform: translateY(-50%) scale(1.05);
+}
+
+.schema-toggle-btn.active {
+    background: #2d3748;
+    right: 420px;
+}
+
+/* Form Elements */
+h1 { 
+    color: #1a202c; 
+    border-bottom: 2px solid #e2e8f0; 
+    padding-bottom: 0.5rem; 
+    margin-bottom: 1.5rem; 
+}
+
+.form-group { 
+    margin-bottom: 1.5rem; 
+}
+
+label { 
+    display: block; 
+    font-weight: 600; 
+    margin-bottom: 0.5rem; 
+}
+
+textarea, select, button, input { 
+    width: 100%; 
+    padding: 0.75rem; 
+    border-radius: 6px; 
+    border: 1px solid #cbd5e0; 
+    font-size: 1rem; 
+    box-sizing: border-box; 
+}
+
+textarea { 
+    height: 120px; 
+    resize: vertical; 
+}
+
+button { 
+    background-color: #4299e1; 
+    color: #fff; 
+    border: none; 
+    cursor: pointer; 
+    font-weight: bold; 
+    transition: background-color 0.2s; 
+    margin-top: 1rem; 
+}
+
+button:hover { 
+    background-color: #2b6cb0; 
+}
+
+button:disabled { 
+    background-color: #a0aec0; 
+    cursor: not-allowed; 
+}
+
+/* Schema Upload Styles */
+.schema-section { 
+    margin-bottom: 2rem; 
+    padding: 1.5rem; 
+    border: 2px dashed #cbd5e0; 
+    border-radius: 8px; 
+    background-color: #f7fafc; 
+}
+
+.schema-tabs { 
+    display: flex; 
+    margin-bottom: 1rem; 
+}
+
+.schema-tab { 
+    padding: 0.5rem 1rem; 
+    background: #e2e8f0; 
+    border: none; 
+    border-radius: 4px 4px 0 0; 
+    cursor: pointer; 
+    margin-right: 0.25rem; 
+}
+
+.schema-tab.active { 
+    background: #4299e1; 
+    color: white; 
+}
+
+.schema-content { 
+    display: none; 
+}
+
+.schema-content.active { 
+    display: block; 
+}
+
+.file-input { 
+    border: 2px dashed #cbd5e0; 
+    padding: 1rem; 
+    text-align: center; 
+    margin-bottom: 1rem; 
+    border-radius: 6px; 
+}
+
+.sql-form { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 1rem; 
+    margin-bottom: 1rem; 
+}
+
+.sql-form input, .sql-form select { 
+    margin-bottom: 0.5rem; 
+}
+
+.full-width { 
+    grid-column: 1 / -1; 
+}
+
+.btn-small { 
+    padding: 0.5rem 1rem; 
+    font-size: 0.9rem; 
+    margin: 0.25rem; 
+}
+
+.btn-secondary { 
+    background: #718096; 
+}
+
+.btn-secondary:hover { 
+    background: #4a5568; 
+}
+
+.tables-list { 
+    max-height: 150px; 
+    overflow-y: auto; 
+    border: 1px solid #cbd5e0; 
+    border-radius: 4px; 
+    padding: 0.5rem; 
+    margin-bottom: 1rem; 
+}
+
+.table-item { 
+    padding: 0.25rem; 
+    cursor: pointer; 
+}
+
+.table-item:hover { 
+    background: #f7fafc; 
+}
+
+.table-item.selected { 
+    background: #bee3f8; 
+}
+
+.schema-preview { 
+    background: #f7fafc; 
+    border: 1px solid #cbd5e0; 
+    border-radius: 4px; 
+    padding: 0.75rem; 
+    max-height: 150px; 
+    overflow-y: auto; 
+    font-family: monospace; 
+    font-size: 0.75rem; 
+    margin-bottom: 1rem; 
+    transition: opacity 0.3s, border-color 0.3s; 
+}
+
+.schema-preview.enabled { 
+    border-color: #4299e1; 
+    opacity: 1; 
+}
+
+.schema-preview.disabled { 
+    border-color: #cbd5e0; 
+    opacity: 0.6; 
+}
+
+/* Status and Info Messages */
+.info { 
+    background-color: #e2e8f0; 
+    padding: 1rem; 
+    border-radius: 6px; 
+    font-size: 0.9rem; 
+    margin-top: 1.5rem; 
+    text-align: center; 
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    min-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Schema Status Indicator */
+.schema-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.schema-status.active {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.schema-status.inactive {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .content-wrapper {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .schema-sidebar {
+        width: 100%;
+        max-width: 700px;
+        position: static;
+        transform: none;
+        opacity: 1;
+    }
+    
+    .schema-sidebar.hidden {
+        display: none;
+    }
+    
+    .schema-toggle-btn {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        margin-bottom: 1rem;
+    }
+    
+    .schema-toggle-btn.active {
+        right: auto;
+    }
+}

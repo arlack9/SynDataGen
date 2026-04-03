@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Synthetic Data Generator</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+        
+        .insight-card {
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .insight-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .insight-description {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .success-message {
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .action-buttons {
+            margin-bottom: 2rem;
+        }
+        
+        .priority-high {
+            border-left-color: #dc3545;
+        }
+        
+        .priority-medium {
+            border-left-color: #ffc107;
+        }
+        
+        .priority-low {
+            border-left-color: #28a745;
+        }
+        
+        .file-selector {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 0.5rem;
+        }
+        
+        .file-item {
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 0.25rem;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .file-item:hover {
+            background: #f8f9fa;
+            border-color: #dee2e6;
+        }
+        
+        .file-item.selected {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .file-meta {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .compact-row {
+            margin-bottom: 0.5rem;
+        }
+        
+        .chart-canvas {
+            height: 250px !important;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Header -->
+    <div class="dashboard-header text-center">
+        <div class="container">
+            <h3><i class="fas fa-chart-line me-2"></i>Analytics Dashboard</h3>
+            <p class="mb-0">Comprehensive Data Analysis & Insights</p>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- File Selector and Action Buttons -->
+        <div class="row compact-row">
+            <div class="col-lg-8 col-md-12">
+                <div class="file-selector">
+                    <h5 class="mb-2"><i class="fas fa-folder-open me-2"></i>Select Data File</h5>
+                    
+                    <!-- API Mode Selector -->
+                    <div class="mb-3">
+                        <label for="analyticsMode" class="form-label" style="font-weight: 600; font-size: 0.9rem;">
+                            <i class="fas fa-brain me-1"></i>Analytics API Mode:
+                        </label>
+                        <select id="analyticsMode" name="analyticsMode" class="form-select form-select-sm">
+                            <option value="online">Online (OpenRouter API)</option>
+                            <option value="gemini">Gemini (Google AI Studio)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- File Type Filter -->
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.9rem;">
+                            <i class="fas fa-filter me-1"></i>File Type:
+                        </label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="fileTypeFilter" id="filterAll" value="all" checked>
+                            <label class="btn btn-outline-primary btn-sm" for="filterAll">All Files</label>
+                            
+                            <input type="radio" class="btn-check" name="fileTypeFilter" id="filterData" value="data">
+                            <label class="btn btn-outline-primary btn-sm" for="filterData">Data Only</label>
+                            
+                            <input type="radio" class="btn-check" name="fileTypeFilter" id="filterAnalytics" value="analytics">
+                            <label class="btn btn-outline-success btn-sm" for="filterAnalytics">Analytics</label>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="file-list" id="fileList">
+                                <div class="text-center text-muted py-3">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Loading files...
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary btn-sm" onclick="analyzeSelectedFile()" id="analyzeBtn" disabled>
+                                    <i class="fas fa-chart-bar me-1"></i>Analyze Selected
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="loadSampleAnalysis()">
+                                    <i class="fas fa-eye me-1"></i>Sample Data
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="refreshFiles()">
+                                    <i class="fas fa-refresh me-1"></i>Refresh Files
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-12">
+                <div class="metric-card text-center">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-success" id="statusBadge">System Ready</span>
+                        <small class="text-muted" id="lastAnalyzed">No analysis yet</small>
+                    </div>
+                    <div class="mt-2">
+                        <strong id="selectedFileName">No file selected</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing data...</p>
+        </div>
+
+        <!-- Messages -->
+        <div id="messageContainer"></div>
+
+        <!-- Analytics Toggle Button -->
+        <div class="row compact-row" id="analyticsToggle" style="display: none;">
+            <div class="col-12 text-center">
+                <button class="btn btn-outline-primary btn-sm" onclick="toggleAnalyticsView()">
+                    <i class="fas fa-compress me-1" id="toggleAnalyticsIcon"></i>
+                    <span id="toggleAnalyticsText">Collapse Analytics</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="analyticsResults">
+        <!-- Summary Metrics -->
+        <div class="row" id="summaryMetrics" style="display: none;">
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card text-center">
+                    <div class="metric-value text-primary" id="totalRecords">0</div>
+                    <div class="metric-label">Total Records</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card text-center">
+                    <div class="metric-value text-info" id="totalFields">0</div>
+                    <div class="metric-label">Total Fields</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card text-center">
+                    <div class="metric-value text-success" id="completeness">0%</div>
+                    <div class="metric-label">Data Completeness</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="metric-card text-center">
+                    <div class="metric-value text-warning" id="qualityScore">0</div>
+                    <div class="metric-label">Quality Score</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row compact-row" id="chartsSection" style="display: none;">
+            <!-- Demographic Charts -->
+            <div class="col-lg-6 col-md-12">
+                <div class="chart-container">
+                    <div class="chart-title">Age Group Distribution</div>
+                    <canvas id="ageGroupChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 col-md-12">
+                <div class="chart-container">
+                    <div class="chart-title">Data Completeness by Field</div>
+                    <canvas id="completenessChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 col-md-12">
+                <div class="chart-container">
+                    <div class="chart-title">Field Type Distribution</div>
+                    <canvas id="fieldTypeChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 col-md-12">
+                <div class="chart-container">
+                    <div class="chart-title">Quality Score Breakdown</div>
+                    <canvas id="qualityChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Insights Section -->
+        <div class="row compact-row" id="aiInsightsSection" style="display: none;">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-robot me-2"></i>AI-Powered Insights</h5>
+                        <span class="badge bg-primary" id="aiStatusBadge">AI Analysis</span>
+                    </div>
+                    <div id="aiInsights"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI-Recommended Charts Section -->
+        <div class="row compact-row" id="aiChartsSection" style="display: none;">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="mb-2"><i class="fas fa-chart-bar me-2"></i>AI-Recommended Visualizations</h5>
+                    <div id="aiCharts" class="row"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights Section -->
+        <div class="row compact-row" id="insightsSection" style="display: none;">
+            <div class="col-lg-8">
+                <div class="chart-container">
+                    <h5 class="mb-2"><i class="fas fa-lightbulb me-2"></i>Key Insights</h5>
+                    <div id="keyInsights"></div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="chart-container">
+                    <h5 class="mb-2"><i class="fas fa-tasks me-2"></i>Recommendations</h5>
+                    <div id="recommendations"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Analysis Section -->
+        <div class="row compact-row" id="detailedSection" style="display: none;">
+            <div class="col-12">
+                <div class="chart-container">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5><i class="fas fa-microscope me-2"></i>Detailed Analysis</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleDetailedView()">
+                            <i class="fas fa-expand me-1"></i>Toggle Details
+                        </button>
+                    </div>
+                    <div id="detailedAnalysis" style="display: none;">
+                        <ul class="nav nav-tabs" id="analysisTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">Overview</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="demographics-tab" data-bs-toggle="tab" data-bs-target="#demographics" type="button" role="tab">Demographics</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics" type="button" role="tab">Statistics</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="quality-tab" data-bs-toggle="tab" data-bs-target="#quality" type="button" role="tab">Quality</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="analysisTabContent">
+                            <div class="tab-pane fade show active p-3" id="overview" role="tabpanel">
+                                <div id="overviewContent"></div>
+                            </div>
+                            <div class="tab-pane fade p-3" id="demographics" role="tabpanel">
+                                <div id="demographicsContent"></div>
+                            </div>
+                            <div class="tab-pane fade p-3" id="statistics" role="tabpanel">
+                                <div id="statisticsContent"></div>
+                            </div>
+                            <div class="tab-pane fade p-3" id="quality" role="tabpanel">
+                                <div id="qualityContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div> <!-- End analyticsResults -->
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let currentAnalysis = null;
+        let currentCharts = {};
+        let selectedFile = null;
+        let outputFiles = [];
+        let currentFileType = 'all'; // Track current filter
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+            loadOutputFiles();
+            
+            // Add event listeners for file type filter
+            document.querySelectorAll('input[name="fileTypeFilter"]').forEach(radio => {
+                radio.addEventListener('change', function(e) {
+                    currentFileType = e.target.value;
+                    displayFileList(outputFiles);
+                });
+            });
+        });
+
+        // Check system status
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/analytics-status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('statusBadge').textContent = 'System Ready';
+                    document.getElementById('statusBadge').className = 'badge bg-success';
+                } else {
+                    document.getElementById('statusBadge').textContent = 'System Error';
+                    document.getElementById('statusBadge').className = 'badge bg-danger';
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+                document.getElementById('statusBadge').textContent = 'System Offline';
+                document.getElementById('statusBadge').className = 'badge bg-danger';
+            }
+        }
+
+        // Load output files
+        async function loadOutputFiles() {
+            try {
+                const response = await fetch('/list-output-files');
+                const data = await response.json();
+                
+                if (data.success) {
+                    outputFiles = data.files;
+                    displayFileList(data.files);
+                } else {
+                    document.getElementById('fileList').innerHTML = 
+                        '<div class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle me-2"></i>Error loading files</div>';
+                }
+            } catch (error) {
+                document.getElementById('fileList').innerHTML = 
+                    '<div class="text-center text-danger py-3"><i class="fas fa-exclamation-triangle me-2"></i>Connection error</div>';
+            }
+        }
+
+        // Display file list
+        function displayFileList(files) {
+            const fileListDiv = document.getElementById('fileList');
+            
+            if (!files || files.length === 0) {
+                fileListDiv.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-folder-open me-2"></i>No data files found</div>';
+                return;
+            }
+
+            // Separate analytics files from data files
+            let analyticsFiles = files.filter(f => f.name.startsWith('analytics_'));
+            let dataFiles = files.filter(f => !f.name.startsWith('analytics_'));
+            
+            // Filter based on current selection
+            let filesToDisplay = [];
+            if (currentFileType === 'all') {
+                filesToDisplay = files;
+            } else if (currentFileType === 'analytics') {
+                filesToDisplay = analyticsFiles;
+            } else if (currentFileType === 'data') {
+                filesToDisplay = dataFiles;
+            }
+            
+            if (filesToDisplay.length === 0) {
+                fileListDiv.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-folder-open me-2"></i>No files found for this filter</div>';
+                return;
+            }
+
+            fileListDiv.innerHTML = filesToDisplay.map(file => {
+                const isAnalytics = file.name.startsWith('analytics_');
+                const icon = isAnalytics ? 'fa-chart-pie' : 'fa-file-alt';
+                const badge = isAnalytics ? '<span class="badge bg-success ms-2">Analytics</span>' : '';
+                
+                return `
+                <div class="file-item" onclick="selectFile('${file.name}', '${file.path}', ${isAnalytics})">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas ${icon} me-1"></i>${file.name}${badge}</strong>
+                            <div class="file-meta">
+                                <i class="fas fa-calendar me-1"></i>${file.modified} 
+                                <i class="fas fa-database ms-2 me-1"></i>${file.size}
+                                ${!isAnalytics ? `<i class="fas fa-file-alt ms-2 me-1"></i>${file.records} records` : ''}
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-muted"></i>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        // Select file for analysis
+        function selectFile(fileName, filePath, isAnalytics = false) {
+            selectedFile = {name: fileName, path: filePath, isAnalytics: isAnalytics};
+            
+            // Update UI
+            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            
+            document.getElementById('selectedFileName').textContent = fileName;
+            document.getElementById('analyzeBtn').disabled = false;
+            
+            // Update button text based on file type
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (isAnalytics) {
+                analyzeBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Load Analytics';
+            } else {
+                analyzeBtn.innerHTML = '<i class="fas fa-chart-bar me-1"></i>Analyze Selected';
+            }
+        }
+
+        // Analyze selected file
+        async function analyzeSelectedFile() {
+            if (!selectedFile) {
+                showMessage('Please select a file first', 'error');
+                return;
+            }
+
+            // Check if it's a pre-analyzed analytics file
+            if (selectedFile.isAnalytics) {
+                await loadPreAnalyzedFile();
+            } else {
+                await performAnalysis();
+            }
+        }
+
+        // Load pre-analyzed analytics file
+        async function loadPreAnalyzedFile() {
+            showLoading(true);
+            clearMessages();
+            
+            try {
+                const response = await fetch('/load-analytics-file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_path: selectedFile.path,
+                        file_name: selectedFile.name
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentAnalysis = data;
+                    displayPreAnalyzedData(data);
+                    document.getElementById('lastAnalyzed').textContent = `Loaded: ${new Date().toLocaleTimeString()}`;
+                    showMessage(`Pre-analyzed file ${selectedFile.name} loaded successfully!`, 'success');
+                } else {
+                    showMessage(`Failed to load analytics file: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Perform regular analysis on data file
+        async function performAnalysis() {
+            showLoading(true);
+            clearMessages();
+            
+            // Get selected API mode
+            const analyticsMode = document.getElementById('analyticsMode').value;
+            
+            try {
+                const response = await fetch('/analyze-file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_path: selectedFile.path,
+                        file_name: selectedFile.name,
+                        mode: analyticsMode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentAnalysis = data;
+                    displayAnalysis(data);
+                    document.getElementById('lastAnalyzed').textContent = `Analyzed: ${new Date().toLocaleTimeString()}`;
+                    showMessage(`Analysis of ${selectedFile.name} completed successfully using ${analyticsMode === 'gemini' ? 'Gemini' : 'OpenRouter'} API!`, 'success');
+                } else {
+                    showMessage(`Analysis failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Refresh files
+        function refreshFiles() {
+            loadOutputFiles();
+            selectedFile = null;
+            document.getElementById('selectedFileName').textContent = 'No file selected';
+            document.getElementById('analyzeBtn').disabled = true;
+        }
+
+        // Load sample analysis
+        function loadSampleAnalysis() {
+            // Create sample data for demonstration
+            const sampleData = {
+                success: true,
+                file_analyzed: 'sample_data.json',
+                analysis: {
+                    dataset_info: {
+                        total_records: 1000,
+                        total_fields: 8
+                    },
+                    basic_statistics: {
+                        completeness: 94.5,
+                        numeric_fields: 3,
+                        text_fields: 5
+                    },
+                    data_quality: {
+                        overall_quality_score: 87
+                    }
+                },
+                visualizations: {
+                    summary_dashboard: {
+                        metrics_cards: [
+                            {title: 'Total Records', value: 1000, type: 'number'},
+                            {title: 'Total Fields', value: 8, type: 'number'},
+                            {title: 'Data Completeness', value: '94.5%', type: 'percentage'},
+                            {title: 'Quality Score', value: '87/100', type: 'score'}
+                        ]
+                    }
+                }
+            };
+            
+            currentAnalysis = sampleData;
+            displayAnalysis(sampleData);
+            showMessage('Sample analysis loaded for demonstration', 'success');
+        }
+
+        // Display pre-analyzed data from analytics file
+        function displayPreAnalyzedData(data) {
+            // Update summary metrics from metadata and analytics_summary
+            const analysis = data.analysis;
+            const metadata = data.metadata || {};
+            const visualizations = data.visualizations;
+            
+            // Update metrics
+            if (metadata.total_records) {
+                document.getElementById('totalRecords').textContent = metadata.total_records.toLocaleString();
+            } else if (analysis.total_records) {
+                document.getElementById('totalRecords').textContent = analysis.total_records.toLocaleString();
+            }
+            
+            if (analysis.dataset_info) {
+                document.getElementById('totalFields').textContent = 
+                    analysis.dataset_info.total_fields || '0';
+            } else if (analysis.field_analysis) {
+                const fieldCount = Object.keys(analysis.field_analysis.completeness || {}).length;
+                document.getElementById('totalFields').textContent = fieldCount;
+            }
+            
+            if (analysis.basic_statistics) {
+                document.getElementById('completeness').textContent = 
+                    (analysis.basic_statistics.completeness || 0).toFixed(1) + '%';
+            } else if (analysis.field_analysis && analysis.field_analysis.completeness) {
+                const avgCompleteness = Object.values(analysis.field_analysis.completeness)
+                    .reduce((a, b) => a + b, 0) / Object.keys(analysis.field_analysis.completeness).length;
+                document.getElementById('completeness').textContent = avgCompleteness.toFixed(1) + '%';
+            }
+            
+            if (analysis.data_quality) {
+                document.getElementById('qualityScore').textContent = 
+                    Math.round(analysis.data_quality.overall_quality_score || 0) + '/100';
+            } else {
+                document.getElementById('qualityScore').textContent = 'N/A';
+            }
+            
+            // Show sections
+            document.getElementById('summaryMetrics').style.display = 'block';
+            document.getElementById('chartsSection').style.display = 'block';
+            document.getElementById('insightsSection').style.display = 'block';
+            document.getElementById('detailedSection').style.display = 'block';
+            document.getElementById('analyticsToggle').style.display = 'block';
+            
+            // Show AI sections if AI data is available
+            if (data.ai_insights) {
+                document.getElementById('aiInsightsSection').style.display = 'block';
+                displayAIInsights(data.ai_insights);
+            }
+            
+            if (data.ai_charts && data.ai_charts.length > 0) {
+                document.getElementById('aiChartsSection').style.display = 'block';
+                displayAICharts(data.ai_charts);
+            }
+            
+            // Create charts using Chart.js configs if available
+            if (data.chart_js_configs && Object.keys(data.chart_js_configs).length > 0) {
+                createChartsFromConfigs(data.chart_js_configs);
+            } else if (visualizations && visualizations.summary_dashboard) {
+                createChartsFromVisualizations(visualizations);
+            } else {
+                createCharts(data); // Fallback to standard chart creation
+            }
+            
+            // Display insights
+            displayInsights(data);
+            
+            // Add metadata info to page
+            if (metadata.generated_at) {
+                const genDate = new Date(metadata.generated_at);
+                showMessage(`Analytics generated on ${genDate.toLocaleDateString()} at ${genDate.toLocaleTimeString()} using ${metadata.generation_mode || 'unknown mode'}`, 'info');
+            }
+        }
+
+        // Create charts from Chart.js configurations
+        function createChartsFromConfigs(configs) {
+            // Destroy existing charts
+            Object.values(currentCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            currentCharts = {};
+            
+            // Create charts from configurations
+            for (const [chartId, config] of Object.entries(configs)) {
+                try {
+                    // Map chart IDs to canvas elements
+                    let canvasId = null;
+                    if (chartId.includes('age') || chartId.includes('demographic')) {
+                        canvasId = 'ageGroupChart';
+                    } else if (chartId.includes('completeness') || chartId.includes('field')) {
+                        canvasId = 'completenessChart';
+                    } else if (chartId.includes('quality')) {
+                        canvasId = 'qualityChart';
+                    } else if (chartId.includes('type') || chartId.includes('distribution')) {
+                        canvasId = 'typeDistributionChart';
+                    }
+                    
+                    if (canvasId) {
+                        const canvas = document.getElementById(canvasId);
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            currentCharts[chartId] = new Chart(ctx, config);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error creating chart ${chartId}:`, error);
+                }
+            }
+        }
+
+        // Create charts from visualization configurations
+        function createChartsFromVisualizations(visualizations) {
+            // Destroy existing charts
+            Object.values(currentCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            currentCharts = {};
+            
+            // Check for summary dashboard with quick_stats
+            if (visualizations.summary_dashboard && visualizations.summary_dashboard.quick_stats) {
+                const quickStats = visualizations.summary_dashboard.quick_stats;
+                if (quickStats.config) {
+                    try {
+                        const ctx = document.getElementById('ageGroupChart').getContext('2d');
+                        currentCharts.quickStats = new Chart(ctx, quickStats.config);
+                    } catch (error) {
+                        console.error('Error creating quick stats chart:', error);
+                    }
+                }
+            }
+            
+            // Create charts from individual visualization items
+            if (visualizations.charts) {
+                visualizations.charts.forEach((chartConfig, index) => {
+                    if (chartConfig.chartjs_config) {
+                        try {
+                            // Map to available canvas elements
+                            const canvasIds = ['completenessChart', 'qualityChart', 'typeDistributionChart'];
+                            if (index < canvasIds.length) {
+                                const ctx = document.getElementById(canvasIds[index]).getContext('2d');
+                                currentCharts[`chart_${index}`] = new Chart(ctx, chartConfig.chartjs_config);
+                            }
+                        } catch (error) {
+                            console.error(`Error creating chart ${index}:`, error);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Display analysis results
+        function displayAnalysis(data) {
+            // Update summary metrics
+            const analysis = data.analysis;
+            const visualizations = data.visualizations;
+            
+            if (analysis.dataset_info) {
+                document.getElementById('totalRecords').textContent = 
+                    analysis.dataset_info.total_records?.toLocaleString() || '0';
+                document.getElementById('totalFields').textContent = 
+                    analysis.dataset_info.total_fields || '0';
+            }
+            
+            if (analysis.basic_statistics) {
+                document.getElementById('completeness').textContent = 
+                    (analysis.basic_statistics.completeness || 0).toFixed(1) + '%';
+            }
+            
+            if (analysis.data_quality) {
+                document.getElementById('qualityScore').textContent = 
+                    Math.round(analysis.data_quality.overall_quality_score || 0) + '/100';
+            }
+            
+            // Show sections
+            document.getElementById('summaryMetrics').style.display = 'block';
+            document.getElementById('chartsSection').style.display = 'block';
+            document.getElementById('insightsSection').style.display = 'block';
+            document.getElementById('detailedSection').style.display = 'block';
+            document.getElementById('analyticsToggle').style.display = 'block';
+            
+            // Show AI sections if AI data is available
+            if (data.ai_insights) {
+                document.getElementById('aiInsightsSection').style.display = 'block';
+                displayAIInsights(data.ai_insights);
+            }
+            
+            if (data.ai_charts) {
+                document.getElementById('aiChartsSection').style.display = 'block';
+                displayAICharts(data.ai_charts);
+            }
+            
+            // Create charts
+            createCharts(data);
+            
+            // Display insights
+            displayInsights(data);
+        }
+
+        // Create charts
+        function createCharts(data) {
+            // Destroy existing charts
+            Object.values(currentCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            currentCharts = {};
+            
+            const analysis = data.analysis;
+            
+            // Age Group Chart (sample data)
+            const ageCtx = document.getElementById('ageGroupChart').getContext('2d');
+            currentCharts.ageGroup = new Chart(ageCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Gen Z (18-27)', 'Millennials (28-43)', 'Gen X (44-59)', 'Boomers (60+)'],
+                    datasets: [{
+                        label: 'Count',
+                        data: [250, 350, 200, 200],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {display: false}
+                    },
+                    scales: {
+                        y: {beginAtZero: true}
+                    }
+                }
+            });
+            
+            // Completeness Chart
+            const compCtx = document.getElementById('completenessChart').getContext('2d');
+            const fields = Object.keys(analysis.field_analysis || {}).slice(0, 6);
+            const completenessData = fields.map(() => Math.random() * 20 + 80); // Sample data
+            
+            currentCharts.completeness = new Chart(compCtx, {
+                type: 'bar',
+                data: {
+                    labels: fields.length ? fields : ['Field 1', 'Field 2', 'Field 3', 'Field 4'],
+                    datasets: [{
+                        label: 'Completeness %',
+                        data: completenessData.length ? completenessData : [95, 87, 92, 98],
+                        backgroundColor: '#36A2EB',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {display: false}
+                    },
+                    scales: {
+                        y: {beginAtZero: true, max: 100}
+                    }
+                }
+            });
+            
+            // Field Type Chart
+            const fieldCtx = document.getElementById('fieldTypeChart').getContext('2d');
+            const numericFields = analysis.basic_statistics?.numeric_fields || 3;
+            const textFields = analysis.basic_statistics?.text_fields || 5;
+            
+            currentCharts.fieldType = new Chart(fieldCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Numeric Fields', 'Text Fields'],
+                    datasets: [{
+                        data: [numericFields, textFields],
+                        backgroundColor: ['#FF6384', '#36A2EB'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {position: 'bottom'}
+                    }
+                }
+            });
+            
+            // Quality Chart
+            const qualityCtx = document.getElementById('qualityChart').getContext('2d');
+            const qualityScore = analysis.data_quality?.overall_quality_score || 87;
+            
+            currentCharts.quality = new Chart(qualityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Quality Score', 'Room for Improvement'],
+                    datasets: [{
+                        data: [qualityScore, 100 - qualityScore],
+                        backgroundColor: ['#28a745', '#e9ecef'],
+                        borderWidth: 0,
+                        cutout: '70%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {display: false}
+                    }
+                }
+            });
+        }
+
+        // Display insights
+        function displayInsights(data) {
+            const insights = data.insights || {};
+            const keyInsightsDiv = document.getElementById('keyInsights');
+            const recommendationsDiv = document.getElementById('recommendations');
+            
+            // Clear existing content
+            keyInsightsDiv.innerHTML = '';
+            recommendationsDiv.innerHTML = '';
+            
+            // Sample insights
+            const sampleInsights = [
+                {
+                    type: 'data_quality',
+                    priority: 'high',
+                    title: 'Excellent Data Quality',
+                    description: 'Your dataset shows high quality with 94.5% completeness and minimal inconsistencies.'
+                },
+                {
+                    type: 'demographic',
+                    priority: 'medium',
+                    title: 'Diverse Age Distribution',
+                    description: 'Good representation across all age groups with slight bias toward Millennials.'
+                },
+                {
+                    type: 'statistical',
+                    priority: 'low',
+                    title: 'Normal Distributions',
+                    description: 'Most numeric fields show normal distributions suitable for standard analysis.'
+                }
+            ];
+            
+            sampleInsights.forEach(insight => {
+                const insightCard = document.createElement('div');
+                insightCard.className = `insight-card priority-${insight.priority}`;
+                insightCard.innerHTML = `
+                    <div class="insight-title">${insight.title}</div>
+                    <div class="insight-description">${insight.description}</div>
+                `;
+                keyInsightsDiv.appendChild(insightCard);
+            });
+            
+            // Sample recommendations
+            const sampleRecommendations = [
+                {
+                    category: 'optimization',
+                    title: 'Optimize Data Types',
+                    description: 'Consider optimizing data types for better storage efficiency.',
+                    priority: 'low'
+                },
+                {
+                    category: 'analysis',
+                    title: 'Advanced Analytics Ready',
+                    description: 'Your data quality is sufficient for machine learning applications.',
+                    priority: 'medium'
+                }
+            ];
+            
+            sampleRecommendations.forEach(rec => {
+                const recCard = document.createElement('div');
+                recCard.className = `insight-card priority-${rec.priority}`;
+                recCard.innerHTML = `
+                    <div class="insight-title">${rec.title}</div>
+                    <div class="insight-description">${rec.description}</div>
+                `;
+                recommendationsDiv.appendChild(recCard);
+            });
+        }
+
+        // Toggle detailed view
+        function toggleDetailedView() {
+            const detailedDiv = document.getElementById('detailedAnalysis');
+            if (detailedDiv.style.display === 'none') {
+                detailedDiv.style.display = 'block';
+                populateDetailedAnalysis();
+            } else {
+                detailedDiv.style.display = 'none';
+            }
+        }
+
+        // Toggle entire analytics section
+        function toggleAnalyticsView() {
+            const analyticsSection = document.getElementById('analyticsResults');
+            const toggleIcon = document.getElementById('toggleAnalyticsIcon');
+            const toggleText = document.getElementById('toggleAnalyticsText');
+            
+            if (analyticsSection.style.display === 'none') {
+                analyticsSection.style.display = 'block';
+                toggleIcon.className = 'fas fa-compress me-1';
+                toggleText.textContent = 'Collapse';
+            } else {
+                analyticsSection.style.display = 'none';
+                toggleIcon.className = 'fas fa-expand me-1';
+                toggleText.textContent = 'Expand';
+            }
+        }
+
+        // Populate detailed analysis tabs
+        function populateDetailedAnalysis() {
+            if (!currentAnalysis) return;
+            
+            const analysis = currentAnalysis.analysis;
+            
+            // Overview tab
+            document.getElementById('overviewContent').innerHTML = `
+                <h5>Dataset Overview</h5>
+                <p><strong>Records:</strong> ${analysis.dataset_info?.total_records?.toLocaleString() || 'N/A'}</p>
+                <p><strong>Fields:</strong> ${analysis.dataset_info?.total_fields || 'N/A'}</p>
+                <p><strong>Completeness:</strong> ${(analysis.basic_statistics?.completeness || 0).toFixed(1)}%</p>
+                <p><strong>Quality Score:</strong> ${Math.round(analysis.data_quality?.overall_quality_score || 0)}/100</p>
+            `;
+            
+            // Add more detailed content for other tabs as needed
+        }
+
+        // Utility functions
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alertClass = type === 'success' ? 'success-message' : 'error-message';
+            
+            container.innerHTML = `<div class="${alertClass}">${message}</div>`;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        function clearMessages() {
+            document.getElementById('messageContainer').innerHTML = '';
+        }
+
+        // Display AI-powered insights
+        function displayAIInsights(aiInsights) {
+            const aiInsightsDiv = document.getElementById('aiInsights');
+            
+            if (!aiInsights.success) {
+                aiInsightsDiv.innerHTML = '<div class="alert alert-warning">AI analysis unavailable</div>';
+                return;
+            }
+            
+            // Update AI status badge
+            const statusBadge = document.getElementById('aiStatusBadge');
+            if (aiInsights.ai_powered) {
+                statusBadge.className = 'badge bg-success';
+                statusBadge.textContent = 'AI-Powered';
+            } else {
+                statusBadge.className = 'badge bg-secondary';
+                statusBadge.textContent = 'Standard Analysis';
+            }
+            
+            let html = '';
+            
+            // AI Summary
+            if (aiInsights.summary) {
+                html += `
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-brain me-2"></i>
+                            <strong>AI Summary:</strong> ${aiInsights.summary}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // AI Insights
+            if (aiInsights.insights && aiInsights.insights.length > 0) {
+                html += '<div class="row">';
+                aiInsights.insights.forEach((insight, index) => {
+                    const importanceColor = insight.importance === 'high' ? 'danger' : 
+                                          insight.importance === 'medium' ? 'warning' : 'info';
+                    const categoryIcon = insight.category === 'demographic' ? 'users' :
+                                       insight.category === 'statistical' ? 'chart-line' :
+                                       insight.category === 'quality' ? 'check-circle' : 'briefcase';
+                    
+                    html += `
+                        <div class="col-md-6 mb-2">
+                            <div class="card border-${importanceColor}">
+                                <div class="card-body p-2">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-${categoryIcon} me-2"></i>
+                                        ${insight.title}
+                                        <span class="badge bg-${importanceColor} ms-2">${insight.importance}</span>
+                                    </h6>
+                                    <p class="card-text small">${insight.description}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Key Metrics
+            if (aiInsights.key_metrics && aiInsights.key_metrics.length > 0) {
+                html += '<div class="mt-3"><h6><i class="fas fa-tachometer-alt me-2"></i>Key Metrics</h6>';
+                html += '<div class="row">';
+                aiInsights.key_metrics.forEach(metric => {
+                    html += `
+                        <div class="col-md-3 mb-2">
+                            <div class="text-center p-2 bg-light rounded">
+                                <div class="h5 mb-1">${metric.value}</div>
+                                <small class="text-muted">${metric.name}</small>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            aiInsightsDiv.innerHTML = html;
+        }
+        
+        // Display AI-recommended charts
+        function displayAICharts(aiCharts) {
+            const aiChartsDiv = document.getElementById('aiCharts');
+            
+            if (!aiCharts || aiCharts.length === 0) {
+                aiChartsDiv.innerHTML = '<div class="col-12"><div class="alert alert-info">No AI chart recommendations available</div></div>';
+                return;
+            }
+            
+            let html = '';
+            aiCharts.forEach((chartData, index) => {
+                const config = chartData.config;
+                const data = chartData.data;
+                
+                if (data.error) {
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="chart-container">
+                                <div class="chart-title">${config.title}</div>
+                                <div class="alert alert-warning">${data.error}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    ${config.title}
+                                    <small class="text-muted ms-2">(AI Recommended)</small>
+                                </div>
+                                <p class="small text-muted">${config.description}</p>
+                                <canvas id="aiChart${index}" class="chart-canvas"></canvas>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            aiChartsDiv.innerHTML = html;
+            
+            // Render the charts
+            aiCharts.forEach((chartData, index) => {
+                if (chartData.data && !chartData.data.error) {
+                    const ctx = document.getElementById(`aiChart${index}`);
+                    if (ctx) {
+                        new Chart(ctx, chartData.data);
+                    }
+                }
+            });
+        }
+
+        function refreshDashboard() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
